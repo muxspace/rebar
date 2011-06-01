@@ -247,6 +247,9 @@ internal_erl_compile(Source, Config, Outdir, ErlOpts) ->
     Target = filename:join([Outdir | string:tokens(Module, ".")]) ++ ".beam",
     ok = filelib:ensure_dir(Target),
 
+    %% TODO: deprecate and remove workaround if fixed in OTP
+    OldMTime = filelib:last_modified(Target),
+
     %% If the file needs compilation, based on last mod date of includes or
     %% the target
     case needs_compile(Source, Target, Hrls) of
@@ -257,6 +260,22 @@ internal_erl_compile(Source, Config, Outdir, ErlOpts) ->
                 {ok, _} ->
                     ok;
                 _ ->
+                    %% TODO: deprecate and remove workaround if fixed in OTP
+                    %%
+                    %% If we're here it means there has been an error.
+                    %%
+                    %% If the target file exists and has either not existed
+                    %% before we called file/2 or has and its mtime is
+                    %% greater we have to delete the file to clean up.
+                    NewMTime = filelib:last_modified(Target),
+                    ShouldDelete = (OldMTime =:= 0 andalso NewMTime > 1)
+                        orelse (OldMTime > 1 andalso OldMTime < NewMTime),
+                    case ShouldDelete of
+                        true ->
+                            ok = file:delete(Target);
+                        false ->
+                            ok
+                    end,
                     ?FAIL
             end;
         false ->
