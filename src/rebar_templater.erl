@@ -152,7 +152,8 @@ create(_Config, _) ->
 %%
 resolve_variables([], Dict) ->
     Dict;
-resolve_variables([{Key, Value0} | Rest], Dict) when is_list(Value0) ->
+resolve_variables([{Key, [H|_]=Value0} | Rest], Dict) when is_integer(H)
+  andalso is_list(Value0) andalso H >= 0 andalso H =< 255 ->
     Value = render(list_to_binary(Value0), Dict),
     resolve_variables(Rest, dict:store(Key, Value, Dict));
 resolve_variables([_Pair | Rest], Dict) ->
